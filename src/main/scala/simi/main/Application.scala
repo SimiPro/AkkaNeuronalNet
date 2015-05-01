@@ -4,6 +4,7 @@ package simi.main
 import akka.actor._
 import akka.pattern.ask
 import akka.pattern.pipe
+import akka.util.Timeout
 import simi.layer.Layer
 import simi.neurons.{Connection, NeuronState, HiddenNeuron}
 import NeuronState.NeuronState
@@ -17,17 +18,19 @@ import scala.concurrent.duration._
 
 
 object Application extends App {
+  implicit val timeout = Timeout(5 seconds)
+
   var trainData = new mutable.MutableList[TrainSet]
-  for (i <- 1 to 5) {
+  for (i <- 1 to 100) {
     trainData += TrainSet(Array[Double](0, 0), Array[Double](0))
   }
-  for (i <- 1 to 5) {
+  for (i <- 1 to 100) {
     trainData += TrainSet(Array[Double](1, 0), Array[Double](0))
   }
-  for (i <- 1 to 5) {
+  for (i <- 1 to 100) {
     trainData += TrainSet(Array[Double](0, 1), Array[Double](0))
   }
-  for (i <- 1 to 5) {
+  for (i <- 1 to 100) {
     trainData += TrainSet(Array[Double](1, 1), Array[Double](1))
   }
 
@@ -39,28 +42,36 @@ object Application extends App {
   // Exex context
   import system.dispatcher
 
-  var net = system.actorOf(Props(new Net(new NetBuilder())))
-  train(trainData)
+  var net = system.actorOf(Props(new Net(new NetBuilder())),"Brain")
+  println("Application --> Net(CreateNet)")
+  val future = net ? CreateNet
+  println("Application <-- Future, Net")
+  future.onSuccess({
+    case a => {
+      println("Application,Future :::: Complete")
+      train(trainData)
+    }
+  })
+  future.onFailure({
+    case e => println("OAAAA FAIIIL!!")
+  })
 
 
-
-
-
-  def train(data:mutable.MutableList[TrainSet], i:Int = 0): Unit = {
-    val costF = net.ask(Train(data))(1 seconds)
+  def train(data:mutable.MutableList[TrainSet], i:Int = 1): Unit = {
+    val costF = net.ask(Train(data))(5 seconds)
     costF onSuccess {
       case cost: Double => {
-        println("Iteration: %i | Cost: %d",i,cost)
-        if (cost > 0.9) train(data)
+        println("Iteration: " + i + " | Cost: " + cost)
+        if (cost > 0.09) train(data, i + 1)
       }
     }
   }
 }
 
 
-
-
-case class SetPostConnections(postConnections:mutable.MutableList[Connection])
+case class SetPostConnection(connection:Connection)
+case class CreateNet()
+case class Input(X:Array[Double])
 case class RegisterPostNeuron(postNeuron:ActorRef)
 case class RegisterPreNeuron(preNeuron:ActorRef)
 case class RegisterNextLayer(nextLayer:ActorRef)
@@ -77,3 +88,4 @@ case class SendResult(a:Double, index:Int)
 case class DeltaImpuls(weight:Double, delta:Double)
 case class NewInputValue(value:Double)
 case class NewInputVector(x:Array[Double])
+case class BackProp( index:Int, cost:Double)

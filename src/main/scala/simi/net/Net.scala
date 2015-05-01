@@ -25,27 +25,35 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
   var result: Promise[Array[Double]] = _
   var resultF: Future[Array[Double]] = _
 
-  createLayers()
-  connectNeurons()
-
-
+  var costP :Promise[Double] = _
+  var trainSet:mutable.MutableList[TrainSet] =_
 
   def connectNeurons() = {
+      val created = Promise[Boolean]()
+      created.future pipeTo sender()
+
+      println("Net --> InputLayer(RegisterNextLayer(hiddenLayers)")
       val future = inputLayer ? RegisterNextLayer(hiddenLayers(0))
-      future onSuccess {
+      println("Net <-- Future, InputLayer")
+
+      future.map {
         case a => {
-          for (i <- 0 until hiddenLayers.length) {
+          println("Net, Future ::: InputLayer <--> 1. HiddenLayer Completed ")
+          for (i <- 0 to hiddenLayers.length - 1) {
+            println("Net --> HiddenLayer(RegisterNextLayer(Outputlayer)")
             val nextLayer = if (i == hiddenLayers.length - 1) outputLayer else hiddenLayers(i + 1)
-            val future =  hiddenLayers(i) ? RegisterNextLayer(nextLayer)
-            Await.ready(future, 5 seconds)
+            val futurez = hiddenLayers(i) ? RegisterNextLayer(nextLayer)
+            futurez.map {
+              // tell whom called CreateNet that we finished
+              case x => {
+                println("Net, Future ::: 1.Hiddenlayer <--> Outputlayer Completed ")
+                println("layer connected")
+                created.success(true)
+              }
+            }
           }
         }
       }
-
-
-
-
-
 
 
   /*
@@ -65,7 +73,6 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
       val thisLayer = builder.hiddenLayers(i)
       hiddenLayers += context.actorOf(Props(new HiddenLayer(thisLayer.hiddenLayerUnits + bias)),thisLayer.name)
     }
-
     outputLayer = context.actorOf(Props(new OutputLayer(builder.outputLayerUnits)), "outputlayer")
   }
 
@@ -78,36 +85,81 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
   }
 
   def train(sets: mutable.MutableList[TrainSet]): Unit = {
-    result = Promise()
-    resultF = result.future
-    pipe(resultF) to sender()
+    costP = Promise()
+    pipe(costP.future) to sender()
+    trainSet = sets
 
-    backProp(sets, 0)
+    backProp(0,0)
     updateWeights(sets.size)
 
   }
 
-  def backProp(sets: mutable.MutableList[TrainSet], i:Int):Unit = {
-    val S = sets(i)
+  def forwardProp(x:Array[Double]): Unit = {
     val resultFuture = outputLayer.ask(ResultArray())(5 seconds)
+    inputLayer ! NewInputVector(x)
+
+    resultFuture onSuccess {
+      case result:Array[Double] => {
+        sender ! result
+      }
+      case x => log.info("Something else: " + x)
+    }
+  }
+
+  def backProp(i:Int,cost:Double):Unit = {
+    val S = trainSet(i)
+    log.debug("Hi Im the Backprop algo, Iteration: " + i + " TrainSet size: " + trainSet.size)
+    val resultFuture = outputLayer.ask(ResultArray())(5 seconds)
+    val gradientFuture = inputLayer ? GradientArray
     inputLayer ! NewInputVector(S.x)
 
     resultFuture onSuccess {
       case result:Array[Double] => {
-        val gradient:Future[Boolean] = inputLayer.ask(GradientArray)(2 seconds).mapTo[Boolean]
+        val newCost = cost + costFunction(result, S.y)
         outputLayer ! SetY(S.y)
-        gradient onSuccess {
+        gradientFuture onSuccess {
           case y: Boolean => {
-            if (i != sets.size - 1) backProp(sets, i + 1)
+            if (i != trainSet.size - 1) {
+              context.self ! BackProp(i + 1, newCost)
+            } else {
+              //log.info("COST: " + newCost)
+              costP.success(newCost)
+            }
           }
         }
       }
     }
   }
 
+  def costFunction(a_L: Array[Double], y: Array[Double]): Double = {
+    var cost = 0.0
+    for (i <- 0 until a_L.size) {
+      cost = cost + (-y(i)) * math.log(a_L(i)) - (1 - y(i)) * math.log(1 - a_L(i))
+    }
+    cost
+  }
+
+  def input(x: Array[Double]): Unit = {
+    forwardProp(x)
+  }
+
+  /**
+   * Returns a future. As soon as its finished, u can start use the net
+   */
+  def createNet(): Unit = {
+
+
+    createLayers()
+    connectNeurons()
+
+  }
+
+
   override def receive: Receive = {
     case Train(data) => train(data)
-
+    case CreateNet => createNet()
+    case Input(x) => input(x)
+    case BackProp(index, cost) => backProp(index, cost)
     case x => log.info("Unknown Message: " + x)
   }
 }

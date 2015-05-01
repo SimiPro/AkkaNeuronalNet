@@ -8,9 +8,9 @@ import simi.neurons.{BiasNeuron, HiddenNeuron}
  */
 class HiddenLayer(units:Int) extends Layer(units) {
   override def createNeurons(): Unit = {
-    neurons(0) = context.actorOf(Props(new BiasNeuron))
+    neurons(0) = context.actorOf(Props(new BiasNeuron), "biasneuron")
     for (i <- 1  until units) {
-      neurons(i) = context.actorOf(Props(new HiddenNeuron))
+      neurons(i) = context.actorOf(Props(new HiddenNeuron), "hiddenneuron" + i)
     }
   }
 }

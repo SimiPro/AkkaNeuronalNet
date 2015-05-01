@@ -2,7 +2,7 @@ package simi.layer
 
 import akka.actor.Props
 import simi.main._
-import simi.neurons.HiddenNeuron
+import simi.neurons.{OutputNeuron, HiddenNeuron}
 import akka.pattern.pipe
 
 import scala.concurrent.{Future, Promise}
@@ -29,12 +29,11 @@ class OutputLayer(units:Int) extends Layer(units) {
   }
 
   def addToResult(a: Double, index: Int): Unit = {
+    resultCounter = resultCounter + 1
     result(index) = a
     if (resultCounter == units) {
       resultP.success(this.result)
       resultCounter = 0
-    }else {
-      resultCounter = resultCounter + 1
     }
   }
 
@@ -48,8 +47,8 @@ class OutputLayer(units:Int) extends Layer(units) {
   }
 
   override def createNeurons(): Unit = {
-    for (i <- 1 until units) {
-      neurons(i) = context.actorOf(Props(new HiddenNeuron), "hiddenneuron" + i)
+    for (i <- 0 until units) {
+      neurons(i) = context.actorOf(Props(new OutputNeuron(i)), "outputneuron" + i)
     }
   }
-  }
+}

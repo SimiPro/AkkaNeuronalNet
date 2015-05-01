@@ -9,6 +9,7 @@ class BiasNeuron() extends  Neuron {
 
   override def trigger(): Unit = {
     postConnections.foreach(C => {
+      log.debug("Receiver: " + C.nextNeuron.path + " Sender: " + context.self.path)
       C.nextNeuron ! NewInputValue(a_value*C.weight)
     })
   }
