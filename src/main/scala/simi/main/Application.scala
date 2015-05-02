@@ -14,7 +14,7 @@ import simi.net.{NetBuilder, Net}
 import scala.collection.mutable
 import scala.concurrent.{Promise, Future, Await}
 import scala.concurrent.duration._
-
+import scala.util.Random
 
 
 object Application extends App {
@@ -22,7 +22,7 @@ object Application extends App {
 
   var trainData = new mutable.MutableList[TrainSet]
   for (i <- 1 to 100) {
-    trainData += TrainSet(Array[Double](0, 0), Array[Double](0))
+    trainData += TrainSet(Array[Double](0, 0), Array[Double](1))
   }
   for (i <- 1 to 100) {
     trainData += TrainSet(Array[Double](1, 0), Array[Double](0))
@@ -42,27 +42,38 @@ object Application extends App {
   // Exex context
   import system.dispatcher
 
-  var net = system.actorOf(Props(new Net(new NetBuilder())),"Brain")
-  println("Application --> Net(CreateNet)")
-  val future = net ? CreateNet
-  println("Application <-- Future, Net")
-  future.onSuccess({
-    case a => {
-      println("Application,Future :::: Complete")
-      train(trainData)
-    }
-  })
-  future.onFailure({
-    case e => println("OAAAA FAIIIL!!")
-  })
+  train()
 
+  def train(): Unit = {
+    val net = system.actorOf(Props(new Net(new NetBuilder(defaultHiddenLayers = false).addHiddenLayer(2))),"Brain" + Random.nextInt())
+    println("Application --> Net(CreateNet)")
+    val future = net ? CreateNet
+    println("Application <-- Future, Net")
+    future.onSuccess({
+      case a => {
+        println("Application,Future :::: Complete")
+        train(trainData, net=net)
+      }
+    })
+    future.onFailure({
+      case e => println("OAAAA FAIIIL!!")
+    })
 
-  def train(data:mutable.MutableList[TrainSet], i:Int = 1): Unit = {
+  }
+
+  def train(data:mutable.MutableList[TrainSet], i:Int = 1, net:ActorRef): Unit = {
     val costF = net.ask(Train(data))(5 seconds)
     costF onSuccess {
       case cost: Double => {
         println("Iteration: " + i + " | Cost: " + cost)
-        if (cost > 0.09) train(data, i + 1)
+        if (cost > 0.09) {
+          if(i > 1000) {
+            println("New Try mby fall into a bad local minima")
+            train()
+          } else {
+            train(data, i + 1, net)
+          }
+        }
       }
     }
   }

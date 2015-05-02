@@ -17,8 +17,9 @@ class NetBuilder(var inputLayerUnits:Int = 2, var outputLayerUnits:Int = 1, var 
 
 
 
-  def addHiddenLayer(hiddenLayerUnits:Int = 1): Unit = {
+  def addHiddenLayer(hiddenLayerUnits:Int = 1): NetBuilder = {
     hiddenLayers += new HiddenLayerBuilder(hiddenLayerUnits, 0)
+    this
   }
 
   class HiddenLayerBuilder(var hiddenLayerUnits:Int = 1, index:Int) {

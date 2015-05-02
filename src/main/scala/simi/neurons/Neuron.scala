@@ -24,7 +24,8 @@ abstract class Neuron extends Actor with ActorLogging {
 
   def updateWeights(m: Int, alpha: Double): Unit = {
     postConnections.foreach(C => {
-      C.weight = C.weight - alpha * (gradient/m)
+      C.weight = C.weight -   alpha*(gradient/m)
+     // println(self.path.name + "  <-----Connection----->  " + C.nextNeuron.path.name + "|| Updated with new weight:  " + C.weight)
     })
   }
 

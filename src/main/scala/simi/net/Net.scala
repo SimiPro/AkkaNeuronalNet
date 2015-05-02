@@ -32,9 +32,9 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
       val created = Promise[Boolean]()
       created.future pipeTo sender()
 
-      println("Net --> InputLayer(RegisterNextLayer(hiddenLayers)")
+      log.debug("Net --> InputLayer(RegisterNextLayer(hiddenLayers)")
       val future = inputLayer ? RegisterNextLayer(hiddenLayers(0))
-      println("Net <-- Future, InputLayer")
+      log.debug("Net <-- Future, InputLayer")
 
       future.map {
         case a => {
@@ -46,8 +46,7 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
             futurez.map {
               // tell whom called CreateNet that we finished
               case x => {
-                println("Net, Future ::: 1.Hiddenlayer <--> Outputlayer Completed ")
-                println("layer connected")
+                log.debug("Net, Future ::: 1.Hiddenlayer <--> Outputlayer Completed ")
                 created.success(true)
               }
             }
@@ -55,15 +54,6 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
         }
       }
 
-
-  /*
-     outputLayer ? RegisterPrevLayer(hiddenLayers(hiddenLayers.length - 1))
-
-     for (i <- hiddenLayers.length - 1 to 0) {
-       val prevLayer = if (i == 0) inputLayer else hiddenLayers(i - 1)
-       hiddenLayers(i) ? RegisterPrevLayer(prevLayer)
-     }
-     */
   }
 
   def createLayers() = {
@@ -81,7 +71,6 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
     hiddenLayers.foreach(L => {
       L ! UpdateWeights(m, alpha)
     })
-    outputLayer ! UpdateWeights(m, alpha)
   }
 
   def train(sets: mutable.MutableList[TrainSet]): Unit = {
@@ -122,7 +111,7 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
             if (i != trainSet.size - 1) {
               context.self ! BackProp(i + 1, newCost)
             } else {
-              //log.info("COST: " + newCost)
+              // log.info("COST: " + newCost)
               costP.success(newCost)
             }
           }
@@ -134,7 +123,7 @@ class Net(builder:NetBuilder) extends Actor with ActorLogging {
   def costFunction(a_L: Array[Double], y: Array[Double]): Double = {
     var cost = 0.0
     for (i <- 0 until a_L.size) {
-      cost = cost + (-y(i)) * math.log(a_L(i)) - (1 - y(i)) * math.log(1 - a_L(i))
+      cost = cost + (-y(i)) * math.log(a_L(i)) - (1 - y(i)) * math.log(1 - a_L(i))  // + lambda1/2) * sum(allWeightsOfLayer1to2.^2) + lambda2/2) * sum(allWieghtsOfLayer2to3.^2)
     }
     cost
   }

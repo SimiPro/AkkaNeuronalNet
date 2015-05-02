@@ -52,7 +52,7 @@ object MathHelper {
   Gets a number [-epsiolon;epsilon]
    */
   def randomInitializedNumber(): Double = {
-    val epsilon = 0.0001
-    random.nextDouble() * 2 * epsilon - epsilon
+    val epsilon = 0.0012
+    random.nextDouble() //* 2 * epsilon - epsilon
   }
 }
