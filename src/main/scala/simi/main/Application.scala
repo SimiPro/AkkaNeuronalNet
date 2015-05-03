@@ -22,7 +22,7 @@ object Application extends App {
 
   var trainData = new mutable.MutableList[TrainSet]
   for (i <- 1 to 100) {
-    trainData += TrainSet(Array[Double](0, 0), Array[Double](1))
+    trainData += TrainSet(Array[Double](0, 0), Array[Double](0))
   }
   for (i <- 1 to 100) {
     trainData += TrainSet(Array[Double](1, 0), Array[Double](0))
@@ -33,9 +33,6 @@ object Application extends App {
   for (i <- 1 to 100) {
     trainData += TrainSet(Array[Double](1, 1), Array[Double](1))
   }
-
-
-
 
   val system = ActorSystem("brain")
 

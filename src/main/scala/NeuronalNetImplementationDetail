@@ -1,0 +1,55 @@
+Design Targets:
+    1) Everyone can EASY connect to a Neuron so that he also can receive their events --> Neuron is an EventBus
+        1a) GradientCheck should be easy enable by hand just over this connection
+        2a) Logging also just over this eventbus - so that we dont have performance issues as long as we not enabled it
+
+
+Events on Neuron:
+    ForwardProp
+    BackProp
+
+
+1) Create InputLayer extends EventBus
+2) Create InputNeurons extends ActorRef
+3) Register these InputNeurons on InputLayer as Suscribers
+
+
+
+
+Each Neuron has x Connections.
+size(prevConnections) = activationValue
+
+onInput {
+    if (activationValue.isReached()) {
+        fireNeuron() {
+            foreach postConnection fireNeuron
+        }
+    }
+}
+
+onDelta {
+    gradient = gradient + delta*finalValue
+    foreach preConnection fireDelta(weight*delta*(finalValue*(1-finalValue)))
+    if(gradientCounter == m) updateWeight(m, alpha)
+}
+
+updateWeight {
+    foreach postConnection C => C.weight = C.weight - alpha*(gradient/m)
+}
+
+
+
+
+Neuron: EventBus:
+
+
+    forward) For Impuls I -> if activationValue exeeded: send out Post g(I*weight) where g is activationfunc
+    ... Possible Solution Every Neuron has a EventBus Neuron --> EventBus(Layer)
+
+    backprop) add to gradient +  weight*finalValue
+              send out Prev = weigh*delta*(final_value* (1-finalValue)
+    updateWeight) for each connection =>s C.weight = C.weight -   alpha*(gradient/m)
+
+
+
+
